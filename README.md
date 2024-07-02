@@ -175,4 +175,4 @@ echo "User creation and group assignment created." | sudo tee -a $LOG_FILE
    - `done` ends the for loop
    - `done < "$input_textfile"` ends the while loop that reads from the input file.
    - `echo "User creation and group assignment created." | sudo tee -a $LOG_FILE` outputing the finished the creation of users and group.# HNG-Task-1
-# Hng-Task-1-Script
+### Hng-Task-1-Script
