@@ -7,15 +7,15 @@ LOG_FILE="/var/log/user_management.log"
 # ensure to check if the number of argument provided is 1
 # if !true exit running the entire codebase
 if [ $# -ne 1 ]; then
-    echo "This is how to run the script: $0 <input_textfile>" | sudo tee -a $LOG_FILE
+    echo "This is how to run the script: $0 <input_file>" | sudo tee -a $LOG_FILE
     exit 1
 fi
 
-input_textfile=$1
+input_file=$1
 
 # Checking if an input file to be passed as an argument exists
-if [ ! -f "$input_textfile" ]; then
-    echo "Error: The file $input_textfile does not exists" | sudo tee -a $LOG_FILE
+if [ ! -f "$input_file" ]; then
+    echo "Error: The file $input_file does not exists" | sudo tee -a $LOG_FILE
     exit 1
 fi
 
