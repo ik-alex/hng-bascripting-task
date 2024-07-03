@@ -79,6 +79,8 @@ This is the function that generates the random password. <br>
 ```
 #this block of script starts reading scripts from the file
 while IFS=';' read -r user groups; do
+    user=$(echo "$user" | xargs)  
+    groups=$(echo "$groups" | xargs)  
     if [ -z "$user" ] || [ -z "$groups" ]; then
         echo "Skipping invalid line: $user;$groups" | sudo tee -a $LOG_FILE
         continue
@@ -89,6 +91,8 @@ while IFS=';' read -r user groups; do
     - `IFS=';'` this sets the internal field separator to ';' which implies that the `read` command splits the line to separate fields based on the semicolon
     - `read -r user groups` reads each line form the input file and assigns the first field to the variable user and the subsequent field after the ; to the group variable
     - `do` begins the block of the code to execute each iteration of the code
+    - `user=$(echo "$user" | xargs)` this removes any whitespace charater in user
+    - `groups=$(echo "$groups" | xargs) ` this removes any whitespace charater in group
 2. `if [ -z "$user" ] || [ -z "$groups" ]; then`
     - `[ -z "$user" ]` checks if the $user variable is empty
     - `-z` test if the length of the string is zero
@@ -106,7 +110,7 @@ while IFS=';' read -r user groups; do
     if id -u "$user" >/dev/null 2>&1; then
          echo "This particular User $user exists" | sudo tee -a $LOG_FILE
     else
-        sudo useradd -m "$user"
+        sudo useradd -m -g "$user" -G "$user" "$user"
         if [ $? -eq 0 ]; then
             echo "User $user created" | sudo tee -a $LOG_FILE
 
@@ -132,7 +136,11 @@ while IFS=';' read -r user groups; do
    - `>/dev/null 2>&1` this redirects the standard output or standard error to `/dev/null`
    - `echo "This particular User $user exists"` this prints the output to the terminal
    - `| sudo tee -a $LOG_FILE` pipes the echo output and appends the output as an input to the `$LOG_FILE`
-2. `sudo useradd -m "$user"` this creates the user in the `$user` variable in the home directory with a sudo permission.
+2. `sudo useradd -m -g "$user" -G "$user" "$user"`
+   - `useradd`: This is the command used to add a new user
+   - `-g "$user"`: Specifies the primary group for the new user. The group name is set to be the same as the username (denoted by $user).
+   - `-G "$user"`: Specifies additional groups for the new user. In this case, it adds the user to a group with the same name as the username.
+   - `"$user"`: This is the actual username of the new user being created.
 3. `if [ $? -eq 0 ]; then`
    - `if` the conditional selector
    - `[ $? -eq 0 ]` this checks if the previous command was executed successfully. in this case the previous command is `sudo useradd -m "$user"`
@@ -143,13 +151,14 @@ while IFS=';' read -r user groups; do
 6. `echo "$user,$password" | sudo tee -a $PASSWORD_FILE >/dev/null` this saves the username and password to a file and suppress the output from showin in the terminal
 7. `echo "$user:$password" | sudo chpasswd` this changes the password of the user
 8. `sudo chmod 700 /home/$user` sets the home directory of the user to full permission
-9. `sudo chown $user:$user /home/$user` changes the ownership of the home directory to user.
+9.  `sudo chown $user:$user /home/$user` changes the ownership of the home directory to user.
 10. `else` if the condition doest hold it will print out the error message of unable to create user
 
 ### The next block of code is to add the users to a group
 ```
  IFS=',' read -r -a group_array <<< "$groups"
     for group in "${group_array[@]}"; do
+    group=$(echo "$group" | xargs) 
         if getent group "$group" >/dev/null 2>&1; then
             sudo usermod -aG "$group" "$user"
             echo "User $user added to existing group $group" | sudo tee -a $LOG_FILE
@@ -167,6 +176,7 @@ echo "User creation and group assignment created." | sudo tee -a $LOG_FILE
    - `IFS=','`: Sets the Internal Field Separator to a comma. This means the read command will split the input string based on commas.
    - `read -r -a group_array <<< "$groups"` Reads the group variable, splits it by comma and stores the value to the group_array.
    - `for group in "${group_array[@]}"` this loops through the `group_array` array and stores each iteration to group.
+   - `group=$(echo "$group" | xargs) ` this removes any leading whitespace in the group.
    - `if getent group "$group" >/dev/null 2>&1` if the group exists in the system; also suppress the standard output and error.
    - `sudo usermod -aG "$group" "$user"` adds users to the existing group
    - `sudo groupadd "$group"` this creates a new group.

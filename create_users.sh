@@ -31,26 +31,29 @@ generate_password() {
     < /dev/urandom tr -dc 'A-Za-z0-9!@#$%&*' | head -c 12
 }
 
-# reading input from the files
+# Read the input file line by line
 while IFS=';' read -r user groups; do
+    user=$(echo "$user" | xargs)  
+    groups=$(echo "$groups" | xargs)  
+    
     if [ -z "$user" ] || [ -z "$groups" ]; then
         echo "Skipping invalid line: $user;$groups" | sudo tee -a $LOG_FILE
         continue
     fi
     
-    # Create the user if they do not already exist
+    # Create the user and their personal group if they do not already exist
     if id -u "$user" >/dev/null 2>&1; then
-        echo "This particular User $user exists" | sudo tee -a $LOG_FILE
+        echo "User $user already exists" | sudo tee -a $LOG_FILE
     else
-        sudo useradd -m "$user"
+        sudo useradd -m -g "$user" -G "$user" "$user"
         if [ $? -eq 0 ]; then
-            echo "User $user created" | sudo tee -a $LOG_FILE
+            echo "User $user and group $user created" | sudo tee -a $LOG_FILE
 
-            # Generating the random password for each user 
+            # Generate a random password for the user
             password=$(generate_password)
             echo "$user,$password" | sudo tee -a $PASSWORD_FILE >/dev/null
             echo "$user:$password" | sudo chpasswd
-            echo "User $user password is set" | sudo tee -a $LOG_FILE
+            echo "Password for user $user set" | sudo tee -a $LOG_FILE
 
             # Set appropriate permissions for the home directory
             sudo chmod 700 /home/$user
@@ -62,9 +65,10 @@ while IFS=';' read -r user groups; do
         fi
     fi
     
-    # Add the user to the specified groups
+    # Add the user to the specified additional groups
     IFS=',' read -r -a group_array <<< "$groups"
     for group in "${group_array[@]}"; do
+        group=$(echo "$group" | xargs) 
         if getent group "$group" >/dev/null 2>&1; then
             sudo usermod -aG "$group" "$user"
             echo "User $user added to existing group $group" | sudo tee -a $LOG_FILE
@@ -74,6 +78,6 @@ while IFS=';' read -r user groups; do
             echo "Group $group created and user $user added to it" | sudo tee -a $LOG_FILE
         fi
     done
-done < "$input_textfile"
+done < "$input_file"
 
-echo "User creation and group assignment created." | sudo tee -a $LOG_FILE
+echo "User creation and group assignment completed." | sudo tee -a $LOG_FILE
